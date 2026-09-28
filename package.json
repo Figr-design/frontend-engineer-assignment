@@ -1,0 +1,9 @@
+{
+  "name": "figr-frontend-assignment",
+  "private": true,
+  "description": "Starter kit for the Figr frontend engineer assignment",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "backend": "node backend/server.js"
+  }
+}

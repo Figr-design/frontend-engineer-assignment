@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Landing</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Georgia, serif; color: #1d1d1f; background: #faf7f2; }
+      nav { display: flex; align-items: center; justify-content: space-between; padding: 20px 48px; }
+      nav ul { display: flex; gap: 24px; list-style: none; margin: 0; padding: 0; }
+      nav a { color: inherit; text-decoration: none; font-size: 15px; }
+      .logo { font-weight: 700; font-size: 20px; letter-spacing: -0.5px; }
+      #hero { padding: 96px 48px 64px; max-width: 880px; }
+      #hero h1 { font-size: 56px; line-height: 1.05; margin: 0 0 20px; }
+      #hero p { font-size: 20px; line-height: 1.5; color: #55504a; margin: 0 0 32px; }
+      .actions { display: flex; gap: 12px; }
+      button { font: inherit; font-size: 16px; padding: 12px 22px; border-radius: 999px; border: 1px solid #1d1d1f; cursor: pointer; }
+      button.primary { background: #1d1d1f; color: #faf7f2; }
+      button.ghost { background: transparent; }
+      .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; padding: 0 48px 64px; }
+      .feature { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06); }
+      .feature h3 { margin: 0 0 8px; font-size: 18px; }
+      .feature p { margin: 0; color: #55504a; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <nav data-name="Top nav">
+      <span class="logo">Northwind</span>
+      <ul>
+        <li><a href="#pricing">Pricing</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </nav>
+
+    <section id="hero" data-key="hero-banner">
+      <h1>Plan the trip. Skip the spreadsheet.</h1>
+      <p>Northwind turns a messy group chat into one itinerary everyone can edit.</p>
+      <div class="actions">
+        <button class="primary" data-key="cta-primary" data-name="Get started">Get started</button>
+        <button class="ghost" id="crash" data-key="cta-crash">Watch demo</button>
+      </div>
+    </section>
+
+    <section class="features">
+      <article class="feature" data-key="feature-sync">
+        <h3>Live sync</h3>
+        <p>Every change shows up for everyone in under a second.</p>
+      </article>
+      <article class="feature" data-key="feature-budget">
+        <h3>Shared budget</h3>
+        <p>Split costs as you plan, not after you get home.</p>
+      </article>
+      <article class="feature">
+        <h3>Offline maps</h3>
+        <p>Download the route before you lose signal.</p>
+      </article>
+    </section>
+
+    <script>
+      document.getElementById("crash").addEventListener("click", () => {
+        const player = null;
+        player.play();
+      });
+    </script>
+  </body>
+</html>

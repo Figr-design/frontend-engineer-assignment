@@ -1,0 +1,28 @@
+{
+  "cta-primary": { "component": "Button", "description": "Primary call to action on the landing hero.", "status": "stable", "owner": "Growth" },
+  "feature-sync": { "component": "FeatureCard", "description": "Marketing card for the live sync feature.", "status": "stable", "owner": "Marketing Web" },
+
+  "signup-form": { "component": "SignupForm", "description": "Account creation form with client-side validation.", "status": "stable", "owner": "Identity" },
+  "signup-name": { "component": "TextField", "description": "Full name input.", "status": "stable", "owner": "Design Systems" },
+  "signup-email": { "component": "TextField", "description": "Work email input. Rejects free-mail domains.", "status": "beta", "owner": "Identity" },
+  "signup-submit": { "component": "Button", "description": "Submit button. Disabled until the form is valid.", "status": "stable", "owner": "Design Systems" },
+
+  "icon-search": { "component": "Icon", "description": "Search icon in the app header.", "status": "stable", "owner": "Design Systems" },
+  "stats-panel": { "component": "StatsPanel", "description": "Weekly KPI summary.", "status": "beta", "owner": "Analytics" },
+  "stat-revenue": { "component": "StatTile", "description": "Revenue for the current week, in USD.", "status": "stable", "owner": "Analytics" },
+  "order-1001": { "component": "OrderRow", "description": "One row in the recent orders table.", "status": "stable", "owner": "Commerce" },
+  "order-1012": { "component": "OrderRow", "description": "One row in the recent orders table.", "status": "deprecated", "owner": "Commerce" },
+
+  "activity-1": { "component": "ActivityItem", "description": "Feed event: comment.", "status": "stable", "owner": "Collaboration" },
+  "activity-3": { "component": "ActivityItem", "description": "Feed event: close.", "status": "stable", "owner": "Collaboration" },
+  "activity-5": { "component": "ActivityItem", "description": "Feed event: ship.", "status": "beta", "owner": "Collaboration" },
+  "activity-7": { "component": "ActivityItem", "description": "Feed event: approve.", "status": "stable", "owner": "Collaboration" },
+
+  "setting-1-1": { "component": "SettingToggle", "description": "Top-level setting.", "status": "stable", "owner": "Platform" },
+  "setting-30-1": { "component": "SettingToggle", "description": "Deepest setting in the tree.", "status": "beta", "owner": "Platform" },
+  "setting-30-2": { "component": "SettingToggle", "description": "Deepest setting in the tree.", "status": "deprecated", "owner": "Platform" },
+
+  "docs-article": { "component": "DocArticle", "description": "Getting started guide.", "status": "stable", "owner": "Developer Experience" },
+  "docs-next-link": { "component": "Link", "description": "Pagination link to the next doc page.", "status": "stable", "owner": "Developer Experience" },
+  "config-region": { "component": "ConfigRow", "description": "Region option in the configuration reference.", "status": "stable", "owner": "Developer Experience" }
+}

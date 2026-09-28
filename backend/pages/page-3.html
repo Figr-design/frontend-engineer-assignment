@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Dashboard</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; background: #0b1020; color: #e2e8f0; }
+      header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; height: 64px; padding: 0 32px; background: rgba(11, 16, 32, 0.92); border-bottom: 1px solid #1e293b; }
+      header .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+      header .icons { display: flex; gap: 16px; }
+      header svg { width: 20px; height: 20px; stroke: #94a3b8; fill: none; stroke-width: 2; }
+      main { padding: 32px; display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+      .panel { background: #111833; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; }
+      .panel h2 { margin: 0 0 16px; font-size: 16px; font-weight: 600; }
+      .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+      .stat { background: #0f1630; border-radius: 10px; padding: 16px; }
+      .stat .value { font-size: 28px; font-weight: 700; }
+      .stat .label { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+      .scroll-area { height: 260px; overflow: auto; border: 1px solid #1e293b; border-radius: 8px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #1e293b; white-space: nowrap; }
+      th { position: sticky; top: 0; background: #111833; color: #94a3b8; font-weight: 500; }
+      .chart { height: 220px; display: flex; align-items: flex-end; gap: 8px; }
+      .bar { flex: 1; background: linear-gradient(#6366f1, #312e81); border-radius: 4px 4px 0 0; }
+      .long { grid-column: 1 / -1; }
+      .long p { color: #94a3b8; line-height: 1.7; margin: 0 0 12px; }
+    </style>
+  </head>
+  <body>
+    <header data-name="Sticky header">
+      <div class="brand">
+        <svg viewBox="0 0 24 24" data-name="Logo mark"><circle cx="12" cy="12" r="9" /><path d="M8 12l3 3 5-6" /></svg>
+        Orbit
+      </div>
+      <div class="icons">
+        <svg viewBox="0 0 24 24" data-key="icon-search" data-name="Search icon"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+        <svg viewBox="0 0 24 24" data-key="icon-bell" data-name="Notifications icon"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>
+        <svg viewBox="0 0 24 24" data-name="Settings icon"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" /></svg>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel" data-key="stats-panel">
+        <h2>This week</h2>
+        <div class="stats">
+          <div class="stat" data-key="stat-revenue"><div class="value">$48.2k</div><div class="label">Revenue</div></div>
+          <div class="stat" data-key="stat-users"><div class="value">3,914</div><div class="label">Active users</div></div>
+          <div class="stat"><div class="value">2.4%</div><div class="label">Churn</div></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Traffic</h2>
+        <div class="chart" data-name="Traffic chart">
+          <div class="bar" style="height: 40%"></div>
+          <div class="bar" style="height: 65%"></div>
+          <div class="bar" style="height: 50%"></div>
+          <div class="bar" style="height: 80%"></div>
+          <div class="bar" style="height: 70%"></div>
+          <div class="bar" style="height: 95%"></div>
+          <div class="bar" style="height: 60%"></div>
+        </div>
+      </section>
+
+      <section class="panel long">
+        <h2>Recent orders</h2>
+        <div class="scroll-area" data-name="Orders scroll area">
+          <table>
+            <thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Total</th></tr></thead>
+            <tbody>
+              <tr data-key="order-1001"><td>#1001</td><td>Priya Nair</td><td>Paid</td><td>$129.00</td></tr>
+              <tr><td>#1002</td><td>Tom Becker</td><td>Pending</td><td>$42.50</td></tr>
+              <tr data-key="order-1003"><td>#1003</td><td>Lina Park</td><td>Refunded</td><td>$18.00</td></tr>
+              <tr><td>#1004</td><td>Omar Haddad</td><td>Paid</td><td>$310.20</td></tr>
+              <tr><td>#1005</td><td>Sara Kim</td><td>Paid</td><td>$76.00</td></tr>
+              <tr><td>#1006</td><td>João Silva</td><td>Pending</td><td>$14.99</td></tr>
+              <tr><td>#1007</td><td>Mei Chen</td><td>Paid</td><td>$220.00</td></tr>
+              <tr><td>#1008</td><td>Ravi Iyer</td><td>Failed</td><td>$55.00</td></tr>
+              <tr><td>#1009</td><td>Emma Stone</td><td>Paid</td><td>$89.90</td></tr>
+              <tr><td>#1010</td><td>Noah Fischer</td><td>Paid</td><td>$64.00</td></tr>
+              <tr><td>#1011</td><td>Aisha Bello</td><td>Pending</td><td>$12.00</td></tr>
+              <tr data-key="order-1012"><td>#1012</td><td>Kenji Sato</td><td>Paid</td><td>$480.00</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel long" data-name="Release notes">
+        <h2>Release notes</h2>
+        <p>Scroll the page: this content passes under the sticky header, and elements under it must still be selectable where they are visible.</p>
+        <p>v4.2 adds saved views, per-team dashboards, and CSV export for every table. Filters now persist across sessions and can be shared by link.</p>
+        <p>v4.1 moved alerts to a new rules engine. Existing rules were migrated automatically; check the audit log if any alert looks different.</p>
+        <p>v4.0 introduced the dark theme, keyboard navigation for every table, and a rebuilt chart renderer that handles a million points.</p>
+        <p>v3.9 fixed timezone drift in weekly reports and added SSO for Okta and Azure AD.</p>
+        <p>v3.8 added webhooks for order status changes, with retries and a delivery log.</p>
+        <p>v3.7 cut dashboard load time in half by streaming panels as they finish.</p>
+        <p>v3.6 added role-based access for finance data.</p>
+      </section>
+    </main>
+  </body>
+</html>
