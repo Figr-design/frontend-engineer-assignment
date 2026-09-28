@@ -1,5 +1,7 @@
 # Figr — Frontend Engineer Assignment
 
+Role and brief: [prokit.notion.site/Frontend-Engineer](https://prokit.notion.site/Frontend-Engineer-3e96ffc3ed67805c9375ef2cda67a01f) · Submit: [join.figr.design/r/kdqVkj](https://join.figr.design/r/kdqVkj)
+
 ## Setting
 
 You're building the viewer for a design tool. A board shows live previews of web pages. Each preview is an `<iframe>` showing a page served from a **different origin** than your app. Users point at elements inside any preview. Your app, the page that contains the previews (the "host"), draws the outlines and labels on top of each preview. It also shows a layers panel and an inspector for whatever is selected.
@@ -162,4 +164,4 @@ You may study any public product, Figr included. If you do, say what you took an
 
 ## Submitting
 
-Submit your repo, video and resume here: **https://tally.so/r/kdqVkj**
+Submit your repo, video and resume here: **https://join.figr.design/r/kdqVkj**
