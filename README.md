@@ -1,6 +1,6 @@
 # Figr — Frontend Engineer Assignment
 
-Role and brief: [prokit.notion.site/Frontend-Engineer](https://prokit.notion.site/Frontend-Engineer-3e96ffc3ed67805c9375ef2cda67a01f) · Submit: [join.figr.design/r/kdqVkj](https://join.figr.design/r/kdqVkj)
+Role and brief: [doc.figr.design/frontend-engineer](https://doc.figr.design/frontend-engineer) · Submit: [join.figr.design/r/kdqVkj](https://join.figr.design/r/kdqVkj)
 
 ## Setting
 
