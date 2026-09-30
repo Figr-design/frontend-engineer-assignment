@@ -4,6 +4,7 @@
   "description": "Starter kit for the Figr frontend engineer assignment",
   "engines": { "node": ">=18" },
   "scripts": {
-    "backend": "node backend/server.js"
+    "backend": "node backend/server.js",
+    "dev": "node dev.js"
   }
 }

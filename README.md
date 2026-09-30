@@ -31,7 +31,15 @@ npm run backend
   - `GET /elements/:key` returns `{ component, description, status, owner }` for elements that carry a `data-key` attribute. It returns `404` when there are no details for that key.
 - **`report(error, context)`** in `frontend/report.js`: a stub error reporter that logs every call.
 
-Build your app in `frontend/`, or anywhere else in the repo.
+Install frontend dependencies once with `npm install --prefix frontend`, then run both services with `npm run dev` from the repository root (`dev.js` starts the backend and Vite). The app is at `http://localhost:3000`.
+
+## Viewer implementation notes
+
+The frontend is a Vite/React host. `frontend/src/App.jsx` owns board transforms, modes, active preview, selection, expanded layer state, and inspector state. Each preview page runs the one permitted added script, `backend/pages/figr-bridge.js`. That script stays small on purpose: it identifies nodes, hit-tests, answers children/ancestor queries, and reports boxes. The host is the only owner of selection. Host requests have a three-second timeout; the preview handshake has a ten-second timeout. Canceled inspector requests are ignored.
+
+Element identity prefers `data-key`, then `id`, then a structural path made from tag, id, key, name, classes, and the occurrence among equivalent siblings. The path does not use mutable text. If the matching sibling count changes after a rebuild, an anonymous element cannot be proven to be the same node, so that selection is cleared rather than moved to a different element. Pages that remove or rename a selected element's `data-key` also cannot preserve that element's identity. Pointer hit testing uses the browser's topmost painted element; elements fully occluded by an opaque sticky overlay are not separately exposed for hover/selection.
+
+The starter pages include intentional runtime errors and dynamically changing content; the bridge reports page errors on the affected previews, where they appear as a `Page error` badge with the message available on hover. Layers are fetched lazily when expanded; search recursively requests children into a transient full tree without changing the saved expanded state. A page navigation reloads that iframe only and resets its remembered layer state.
 
 ## Terms
 
