@@ -2,6 +2,8 @@
   const CHANNEL = 'figr-board';
   const origin = document.referrer ? new URL(document.referrer).origin : '*';
   const cache = new Map();
+  const nodeRefs = new WeakMap();
+  let nextNodeRef = 0;
   let session = null;
   let mode = 'select';
   let selected = [];
@@ -17,32 +19,17 @@
   const textOf = node => (node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120);
   const nameOf = node => node.getAttribute('data-name')
     || `${node.tagName.toLowerCase()}${node.classList.length ? `.${node.classList[0]}` : node.id ? `#${node.id}` : ''}`;
-  const mark = node => JSON.stringify({
-    tag: node.tagName.toLowerCase(),
-    id: node.id || '',
-    key: node.getAttribute('data-key') || '',
-    name: node.getAttribute('data-name') || '',
-    classes: [...node.classList].sort(),
-  });
-
-  const pathOf = node => {
-    const parts = [];
-    for (let current = node; current && current !== document.body; current = current.parentElement) {
-      const value = mark(current);
-      const tagged = current.parentElement
-        ? [...current.parentElement.children].filter(child => child.tagName === current.tagName)
-        : [current];
-      const twins = tagged.filter(child => mark(child) === value);
-      parts.unshift({ ...JSON.parse(value), occurrence: twins.indexOf(current), matchingCount: twins.length });
-    }
-    return JSON.stringify(parts);
-  };
-
   const refOf = node => {
     const key = node.getAttribute('data-key');
     if (key) return `key:${key}`;
     if (node.id) return `id:${node.id}`;
-    return `path:${pathOf(node)}`;
+    let ref = nodeRefs.get(node);
+    if (!ref) {
+      ref = `node:${++nextNodeRef}`;
+      nodeRefs.set(node, ref);
+    }
+    cache.set(ref, node);
+    return ref;
   };
 
   const resolve = ref => {
@@ -50,29 +37,15 @@
     if (cached?.isConnected) return cached;
     if (ref.startsWith('key:')) {
       const key = ref.slice(4);
-      return [...document.querySelectorAll('[data-key]')].find(node => node.getAttribute('data-key') === key) || null;
+      const matches = [...document.querySelectorAll('[data-key]')].filter(node => node.getAttribute('data-key') === key);
+      return matches.length === 1 ? matches[0] : null;
     }
-    if (ref.startsWith('id:')) return document.getElementById(ref.slice(3));
-    if (!ref.startsWith('path:')) return null;
-    try {
-      let nodes = [document.body];
-      for (const part of JSON.parse(ref.slice(5))) {
-        const next = [];
-        for (const parentNode of nodes) {
-          const tagged = [...parentNode.children].filter(child => child.tagName.toLowerCase() === part.tag);
-          const twins = tagged.filter(child => mark(child) === JSON.stringify({
-            tag: part.tag, id: part.id, key: part.key, name: part.name, classes: part.classes,
-          }));
-          if (twins.length !== part.matchingCount) continue;
-          if (twins[part.occurrence]) next.push(twins[part.occurrence]);
-        }
-        nodes = next;
-        if (!nodes.length) return null;
-      }
-      return nodes.length === 1 ? nodes[0] : null;
-    } catch {
-      return null;
+    if (ref.startsWith('id:')) {
+      const id = ref.slice(3);
+      const matches = [...document.querySelectorAll('[id]')].filter(node => node.id === id);
+      return matches.length === 1 ? matches[0] : null;
     }
+    return null;
   };
 
   const describe = node => {

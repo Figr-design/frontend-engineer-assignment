@@ -25,6 +25,7 @@ The bridge observes DOM mutations and reports changed selections, then the host 
 
 Known gaps in the current build:
 
+- **Anonymous element identity is temporary.** Anonymous elements use a token tied to the current DOM node, so selection clears if a page rebuilds that node. Unique `data-key` and ID values are re-resolved across rebuilds; duplicate keys or IDs are treated as ambiguous and are not re-resolved.
 - **Failure containment and reporting are incomplete.** `GET /screens` failures are logged rather than shown in a board-local error state. There is no general error boundary, retry UI, per-region error handling, or call to `report()`. Page runtime errors do appear as a preview badge.
 - **Layer load failures are not distinguishable from empty children.** The tree does not currently show the required per-row “Couldn't load” state or retry action. Search failures are silently ignored.
 - **Interaction and keyboard coverage is not exhaustive.** Native behavior in Interact mode is intended, but the bridge's keyboard forwarding and host shortcuts may conflict with page-level keyboard workflows. The host layer keyboard handler implements arrow navigation; its exact behavior does not cover every selection shortcut described in the brief.
