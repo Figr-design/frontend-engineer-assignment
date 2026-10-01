@@ -18,18 +18,21 @@ function InspectorLive({ items }) {
   })}</dl></div>;
 }
 
-export default function InspectorPanel({ activeScreen, activeSelection, removed, detailState }) {
+export default function InspectorPanel({ activeScreen, activeSelection, removed, detailState, detailsRetry }) {
   return (
     <section className="panel inspector-panel">
       <header className="panel-header"><h2>Inspector</h2></header>
-        {!activeScreen || !activeSelection.length ? <div className="panel-empty">{removed ? 'This element no longer exists' : 'Select an element to inspect'}</div>
+        {!activeScreen || !activeSelection.length ? <><div className="panel-empty">{removed ? 'This element no longer exists' : 'Select an element to inspect'}</div>
+          {detailState.error && <div className="inspector-section"><h3>Details</h3><div className="region-error compact" role="alert"><span>{detailState.error}</span><button type="button" onClick={detailsRetry}>Retry</button></div></div>}
+        </>
           : activeSelection.length > 1 ? <><div className="selection-summary">{activeSelection.length} elements</div><InspectorLive items={activeSelection} /></>
             : <><InspectorLive items={activeSelection} /><div className="inspector-section"><h3>Details</h3>
-              {!activeSelection[0].dataKey ? <div className="panel-empty compact">No details</div>
-                : detailState.loading ? <div className="panel-empty compact">Loading details...</div>
-                  : !detailState.data ? <div className="panel-empty compact">No details for this element</div>
+                {detailState.error ? <div className="region-error compact" role="alert"><span>{detailState.error}</span><button type="button" onClick={detailsRetry}>Retry</button></div>
+                  : !activeSelection[0].dataKey ? <div className="panel-empty compact">No details</div>
+                  : detailState.loading ? <div className="panel-empty compact">Loading details...</div>
+                    : !detailState.data ? <div className="panel-empty compact">No details for this element</div>
                       : <dl className="inspector-fields">{Object.entries(detailState.data).map(([key, value]) => <Field key={key} label={key} value={value} />)}</dl>}
-            </div></>}
+              </div></>}
     </section>
   );
 }

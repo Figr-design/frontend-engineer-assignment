@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getElementDetails, getScreens } from './api.js';
 import InspectorPanel from './InspectorPanel.jsx';
+import { report } from '../report.js';
 import './App.css';
 
 const CHANNEL = 'figr-board';
@@ -77,8 +78,14 @@ function liveKey(item) {
   return [item?.name, item?.tag, item?.id, (item?.classes || []).join('.'), boxKey(item), live.text, live.color, live.background, live.fontFamily, live.fontSize, live.fontWeight, live.pageX, live.pageY].join('|');
 }
 
+function RegionError({ message, onRetry }) {
+  return <div className="region-error" role="alert"><span>{message}</span><button type="button" onClick={onRetry}>Retry</button></div>;
+}
+
 export default function App() {
   const [screens, setScreens] = useState([]);
+  const [screensError, setScreensError] = useState(null);
+  const [screensLoading, setScreensLoading] = useState(true);
   const [mode, setMode] = useState('select');
   const [transform, setTransform] = useState({ x: 24, y: 24, z: 0.45 });
   const [zoomLabel, setZoomLabel] = useState(45);
@@ -93,6 +100,11 @@ export default function App() {
   const [searchTree, setSearchTree] = useState(null);
   const [removed, setRemoved] = useState({});
   const [pageErrors, setPageErrors] = useState({});
+  const [previewErrors, setPreviewErrors] = useState({});
+  const [previewRetry, setPreviewRetry] = useState({});
+  const [layersError, setLayersError] = useState(null);
+  const [detailsRetry, setDetailsRetry] = useState(0);
+  const [devOpen, setDevOpen] = useState(false);
   const [panelScrollByScreen, setPanelScrollByScreen] = useState({});
   const [detailState, setDetailState] = useState({ loading: false, data: null });
   const viewportRef = useRef(null);
@@ -103,21 +115,92 @@ export default function App() {
   const childRequestsRef = useRef(new Map());
   const requestIdRef = useRef(0);
   const pageUrlRef = useRef(new Map());
+  const previewTimersRef = useRef(new Map());
+  const previewFailedRef = useRef(new Set());
+  const screensControllerRef = useRef(null);
   const layerTreeRef = useRef(null);
   const treesRef = useRef(trees);
   const selectionsRef = useRef(selections);
   const expandedRef = useRef(expandedByScreen);
   const treeSyncRef = useRef(new Map());
   const activeScreenRef = useRef(activeScreen);
+  const previousActiveScreenRef = useRef(activeScreen);
   activeScreenRef.current = activeScreen;
   treesRef.current = trees;
   selectionsRef.current = selections;
   expandedRef.current = expandedByScreen;
 
-  const loadScreens = () => {
-    getScreens().then(setScreens).catch(error => console.error(error));
+  const failRegion = (region, screenId, error, elementKey) => {
+    if (region === 'preview') {
+      if (previewFailedRef.current.has(screenId)) return;
+      previewFailedRef.current.add(screenId);
+      const timer = previewTimersRef.current.get(screenId);
+      if (timer) window.clearTimeout(timer);
+      previewTimersRef.current.delete(screenId);
+    }
+    report(error, { region, screenId, ...(elementKey ? { elementKey } : {}) });
+    if (region === 'board') setScreensError(error.message || 'Could not load screens');
+    if (region === 'preview') setPreviewErrors(previous => ({ ...previous, [screenId]: error.message || 'Preview unavailable' }));
+    if (region === 'layers') setLayersError(error.message || 'Could not load layers');
+    if (region === 'details') setDetailState({ loading: false, data: null, error: error.message || 'Could not load details' });
   };
-  useEffect(() => { loadScreens(); }, []);
+
+  const guard = (region, screenId, handler) => (...args) => {
+    try {
+      const result = handler(...args);
+      if (result && typeof result.then === 'function') result.catch(error => failRegion(region, screenId, error));
+      return result;
+    } catch (error) {
+      failRegion(region, screenId, error);
+      return undefined;
+    }
+  };
+
+  const cancelPreviewRequests = screenId => {
+    requestsRef.current.forEach((pending, requestId) => {
+      if (pending.screenId !== screenId) return;
+      requestsRef.current.delete(requestId);
+      window.clearTimeout(pending.timer);
+      pending.reject(new DOMException('Preview request was replaced', 'AbortError'));
+    });
+  };
+
+  const retryPreview = screenId => {
+    previewFailedRef.current.delete(screenId);
+    const timer = previewTimersRef.current.get(screenId);
+    if (timer) window.clearTimeout(timer);
+    previewTimersRef.current.delete(screenId);
+    cancelPreviewRequests(screenId);
+    setPreviewErrors(previous => ({ ...previous, [screenId]: null }));
+    setPageErrors(previous => ({ ...previous, [screenId]: null }));
+    setPreviewRetry(previous => ({ ...previous, [screenId]: (previous[screenId] || 0) + 1 }));
+  };
+
+  const loadScreens = async () => {
+    screensControllerRef.current?.abort();
+    const controller = new AbortController();
+    screensControllerRef.current = controller;
+    setScreensLoading(true);
+    setScreensError(null);
+    try {
+      const result = await getScreens({ signal: controller.signal });
+      if (!controller.signal.aborted && screensControllerRef.current === controller) setScreens(result);
+    } catch (error) {
+      if (!controller.signal.aborted && screensControllerRef.current === controller) failRegion('board', null, error);
+    } finally {
+      if (!controller.signal.aborted && screensControllerRef.current === controller) setScreensLoading(false);
+    }
+  };
+  useEffect(() => {
+    loadScreens();
+    return () => screensControllerRef.current?.abort();
+  }, []);
+
+  useEffect(() => () => {
+    previewTimersRef.current.forEach(timer => window.clearTimeout(timer));
+    requestsRef.current.forEach(pending => window.clearTimeout(pending.timer));
+    requestsRef.current.clear();
+  }, []);
 
   const post = (screenId, message) => {
     iframeRefs.current.get(screenId)?.contentWindow?.postMessage({ channel: CHANNEL, ...message }, '*');
@@ -129,11 +212,18 @@ export default function App() {
       return;
     }
     const requestId = ++requestIdRef.current;
-    requestsRef.current.set(requestId, { resolve, reject, screenId, type });
+    const timer = window.setTimeout(() => {
+      const pending = requestsRef.current.get(requestId);
+      if (!pending) return;
+      requestsRef.current.delete(requestId);
+      pending.reject(new Error(`Preview ${type} request timed out`));
+    }, 3000);
+    requestsRef.current.set(requestId, { resolve, reject, screenId, type, timer });
     try {
       post(screenId, { type, requestId, ...payload });
     } catch (error) {
       requestsRef.current.delete(requestId);
+      window.clearTimeout(timer);
       reject(error);
     }
   });
@@ -149,6 +239,7 @@ export default function App() {
         : treesRef.current[screenId];
       const hasExisting = Array.isArray(existingNodes);
       setRowStatus(previous => ({ ...previous, [statusKey]: { loading: !hasExisting } }));
+      if (!parentRef) setLayersError(null);
       try {
         const result = await request(screenId, 'children', { ref: parentRef });
         if (activeScreenRef.current && activeScreenRef.current !== screenId) return [];
@@ -159,8 +250,17 @@ export default function App() {
         });
         setRowStatus(previous => ({ ...previous, [statusKey]: { loading: false } }));
         return result.nodes;
-      } catch {
-        setRowStatus(previous => ({ ...previous, [statusKey]: { loading: false } }));
+      } catch (error) {
+        if (activeScreenRef.current !== screenId || error.name === 'AbortError') {
+          setRowStatus(previous => ({ ...previous, [statusKey]: { loading: false } }));
+          return [];
+        }
+        if (parentRef) {
+          setRowStatus(previous => ({ ...previous, [statusKey]: { loading: false, error: error.message || 'Could not load children' } }));
+          report(error, { region: 'layers-row', screenId });
+        } else {
+          failRegion('layers', screenId, error);
+        }
         return [];
       } finally {
         if (childRequestsRef.current.get(statusKey) === load) childRequestsRef.current.delete(statusKey);
@@ -202,8 +302,13 @@ export default function App() {
         const ancestorNode = findItem(treesRef.current[screenId] || [], ancestor.ref);
         if (!Array.isArray(ancestorNode?.children)) await loadChildren(screenId, ancestor.ref);
       }
-      window.setTimeout(() => rowRefs.current.get(rowKey)?.scrollIntoView({ block: 'nearest' }), 50);
-    } catch { /* No matching layer can be revealed while its data is unavailable. */ }
+      window.setTimeout(() => {
+        try { rowRefs.current.get(rowKey)?.scrollIntoView({ block: 'nearest' }); }
+        catch (error) { failRegion('layers', screenId, error); }
+      }, 50);
+    } catch (error) {
+      if (activeScreenRef.current === screenId) failRegion('layers', screenId, error);
+    }
   };
 
   const selectItem = (screenId, item, shift = false, fromPage = false) => {
@@ -261,10 +366,14 @@ export default function App() {
 
   useEffect(() => {
     const onKeyDown = event => {
-      if (event.target.matches?.('input,textarea,[contenteditable="true"]')) return;
-      if (['v', 'V', 'i', 'I', 'Escape', 'Enter', 'Tab'].includes(event.key)) {
-        handleShortcut(event.key, event.shiftKey);
-        if (mode === 'select' && ['Enter', 'Tab'].includes(event.key)) event.preventDefault();
+      try {
+        if (event.target.matches?.('input,textarea,[contenteditable="true"]')) return;
+        if (['v', 'V', 'i', 'I', 'Escape', 'Enter', 'Tab'].includes(event.key)) {
+          handleShortcut(event.key, event.shiftKey);
+          if (mode === 'select' && ['Enter', 'Tab'].includes(event.key)) event.preventDefault();
+        }
+      } catch (error) {
+        failRegion(activeScreen ? 'preview' : 'board', activeScreen, error);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -282,6 +391,11 @@ export default function App() {
       const message = event.data;
       try {
       if (message.type === 'ready') {
+        previewFailedRef.current.delete(screen.id);
+        const previewTimer = previewTimersRef.current.get(screen.id);
+        if (previewTimer) window.clearTimeout(previewTimer);
+        previewTimersRef.current.delete(screen.id);
+        setPreviewErrors(previous => ({ ...previous, [screen.id]: null }));
         const oldUrl = pageUrlRef.current.get(screen.id);
         if (oldUrl && oldUrl !== message.url) {
           setSelection(screen.id, []);
@@ -294,6 +408,7 @@ export default function App() {
         const pending = requestsRef.current.get(message.requestId);
         if (!pending) return;
         requestsRef.current.delete(message.requestId);
+        window.clearTimeout(pending.timer);
         if (message.type !== pending.type || (message.type === 'children' && !Array.isArray(message.nodes))
           || (message.type === 'ancestors' && !Array.isArray(message.ancestors))) {
           pending.reject(new Error(`Malformed ${message.type} response`));
@@ -353,14 +468,15 @@ export default function App() {
           try {
             loadChildren(screen.id, null, true);
             (expandedRef.current[screen.id] || new Set()).forEach(ref => loadChildren(screen.id, ref, true));
-          } catch (error) { console.error(error); }
+          } catch (error) { failRegion('layers', screen.id, error); }
         }, 160));
       } else if (message.type === 'page-error') {
         const pageMessage = typeof message.message === 'string' && message.message.trim() ? message.message : 'Page error';
         setPageErrors(previous => ({ ...previous, [screen.id]: pageMessage }));
+        report(new Error(pageMessage), { region: 'preview', screenId: screen.id });
       }
       } catch (error) {
-        console.error(error);
+        failRegion(message.type === 'children' || message.type === 'ancestors' ? 'layers' : 'preview', screen.id, error);
       }
     };
     window.addEventListener('message', onMessage);
@@ -369,6 +485,12 @@ export default function App() {
 
   useEffect(() => {
     if (activeScreen && !Array.isArray(treesRef.current[activeScreen])) loadChildren(activeScreen, null);
+  }, [activeScreen]);
+
+  useEffect(() => {
+    const previousScreen = previousActiveScreenRef.current;
+    if (previousScreen && previousScreen !== activeScreen) cancelPreviewRequests(previousScreen);
+    previousActiveScreenRef.current = activeScreen;
   }, [activeScreen]);
 
   const zoomAt = (deltaY, pointX, pointY) => {
@@ -387,6 +509,7 @@ export default function App() {
     const viewport = viewportRef.current;
     if (!viewport) return undefined;
     const onWheel = event => {
+      try {
       if (event.ctrlKey || event.metaKey) {
         event.preventDefault();
         const rect = viewport.getBoundingClientRect();
@@ -394,6 +517,10 @@ export default function App() {
       } else if (!event.target.closest('[data-preview]')) {
         event.preventDefault();
         setTransform(previous => ({ ...previous, x: previous.x - event.deltaX, y: previous.y - event.deltaY }));
+      }
+      } catch (error) {
+        const preview = event.target.closest('[data-preview]');
+        failRegion(preview ? 'preview' : 'board', preview?.dataset.screenId || null, error);
       }
     };
     viewport.addEventListener('wheel', onWheel, { passive: false });
@@ -411,9 +538,11 @@ export default function App() {
 
   useEffect(() => {
     const clearHover = () => {
-      screens.forEach(screen => post(screen.id, { type: 'hover-ref', ref: null }));
-      setHovered({});
-      setGeometry(previous => Object.fromEntries(Object.entries(previous).map(([id, value]) => [id, { ...value, hovered: null }])));
+      try {
+        screens.forEach(screen => post(screen.id, { type: 'hover-ref', ref: null }));
+        setHovered({});
+        setGeometry(previous => Object.fromEntries(Object.entries(previous).map(([id, value]) => [id, { ...value, hovered: null }])));
+      } catch (error) { failRegion('board', null, error); }
     };
     window.addEventListener('blur', clearHover);
     return () => window.removeEventListener('blur', clearHover);
@@ -445,7 +574,7 @@ export default function App() {
     }
 
     const controller = new AbortController();
-    setDetailState({ loading: true, data: null });
+    setDetailState({ loading: true, data: null, error: null });
     let current = true;
     getElementDetails(selectedDataKey, { signal: controller.signal }).then(data => {
       const selectedNow = selectionsRef.current[activeScreen] || [];
@@ -456,10 +585,10 @@ export default function App() {
       const selectedNow = selectionsRef.current[activeScreen] || [];
       if (!current || controller.signal.aborted || activeScreenRef.current !== activeScreen
         || selectedNow.length !== 1 || selectedNow[0].dataKey !== selectedDataKey) return;
-      setDetailState({ loading: false, data: null });
+      failRegion('details', activeScreen, error, selectedDataKey);
     });
     return () => { current = false; controller.abort(); };
-  }, [activeScreen, selectedForDetails.length, selectedDataKey]);
+  }, [activeScreen, selectedForDetails.length, selectedDataKey, detailsRetry]);
 
   useEffect(() => {
     if (!activeScreen || !search.trim()) { setSearchTree(null); return undefined; }
@@ -476,7 +605,9 @@ export default function App() {
       try {
         const results = await loadTree(null);
         if (!cancelled && activeScreenRef.current === activeScreen) setSearchTree(results);
-      } catch { /* No search results are available until the preview responds. */ }
+      } catch (error) {
+        if (!cancelled && activeScreenRef.current === activeScreen && error.name !== 'AbortError') failRegion('layers', activeScreen, error);
+      }
     }, 180);
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [activeScreen, search]);
@@ -539,6 +670,22 @@ export default function App() {
     }
   };
 
+  const devScreenId = activeScreen || screens[0]?.id || null;
+  const triggerDevFailure = kind => {
+    const error = new Error(`Development test failure: ${kind}`);
+    if (kind === 'board') failRegion('board', null, error);
+    if (kind === 'preview' && devScreenId) failRegion('preview', devScreenId, error);
+    if (kind === 'layers' && devScreenId) failRegion('layers', devScreenId, error);
+    if (kind === 'layers-row' && devScreenId) {
+      const item = activeTree[0];
+      if (item) {
+        setRowStatus(previous => ({ ...previous, [`${devScreenId}:${item.ref}`]: { loading: false, error: error.message } }));
+        report(error, { region: 'layers-row', screenId: devScreenId });
+      } else failRegion('layers', devScreenId, error);
+    }
+    if (kind === 'details' && devScreenId) failRegion('details', devScreenId, error, selectedDataKey);
+  };
+
   return (
     <div className="app-shell">
       <header className="toolbar">
@@ -551,13 +698,21 @@ export default function App() {
         <div className="toolbar-spacer" />
         <div className="zoom-indicator">{zoomLabel}%</div>
         <div className="toolbar-context">{activeScreen ? screens.find(screen => screen.id === activeScreen)?.name : 'Board'}</div>
+        {import.meta.env.DEV && <details className="dev-failures" open={devOpen} onToggle={event => setDevOpen(event.currentTarget.open)}>
+          <summary>Failure demos</summary>
+          <div className="dev-failure-menu">
+            {['board', 'preview', 'layers', 'layers-row', 'details'].map(kind =>
+              <button type="button" key={kind} onClick={() => { triggerDevFailure(kind); setDevOpen(false); }}>{kind}</button>)}
+          </div>
+        </details>}
       </header>
 
       <main className="workspace">
         <section className="board-area" aria-label="Screen board">
-          {!screens.length ? <div className="app-message">Loading screens...</div>
-            : <div ref={viewportRef} className="board-viewport" onPointerDown={startPan} onPointerMove={pan} onPointerUp={stopPan} onPointerCancel={stopPan}
-            onClick={event => { if (!event.target.closest('[data-preview]') && activeScreen) setSelection(activeScreen, []); }}>
+          {screensError ? <RegionError message={screensError} onRetry={loadScreens} />
+            : screensLoading && !screens.length ? <div className="app-message">Loading screens...</div>
+            : <div ref={viewportRef} className="board-viewport" onPointerDown={guard('board', null, startPan)} onPointerMove={guard('board', null, pan)} onPointerUp={guard('board', null, stopPan)} onPointerCancel={guard('board', null, stopPan)}
+              onClick={guard('board', null, event => { if (!event.target.closest('[data-preview]') && activeScreen) setSelection(activeScreen, []); })}>
             <div className="board" style={{ '--board-x': `${transform.x}px`, '--board-y': `${transform.y}px`, '--board-zoom': transform.z }}>
               {screens.map((screen, index) => {
                 const activeRefs = new Set((selections[screen.id] || []).map(item => item.ref));
@@ -571,11 +726,18 @@ export default function App() {
                   : [];
                 return <article key={screen.id} className={`screen-preview${activeScreen === screen.id ? ' is-active' : ''}`} data-preview data-screen-id={screen.id}
                   style={{ '--screen-left': `${(index % COLS) * (W + GAP)}px`, '--screen-top': `${Math.floor(index / COLS) * (H + GAP + 24)}px` }}
-                  onPointerDown={() => setActiveScreen(screen.id)}>
+                  onPointerDown={guard('preview', screen.id, () => setActiveScreen(screen.id))}>
                   <div className="screen-name"><span className="screen-dot" />{screen.name}<span className="screen-index">{String(index + 1).padStart(2, '0')}</span></div>
                   <div className="preview-frame-wrap">
-                    <iframe ref={element => element ? iframeRefs.current.set(screen.id, element) : iframeRefs.current.delete(screen.id)} src={screen.url} title={screen.name} className="screen-frame"
-                      onLoad={() => post(screen.id, { type: 'init', mode, selected: (selections[screen.id] || []).map(item => item.ref) })} />
+                    {previewErrors[screen.id] ? <RegionError message="Couldn't connect to this preview" onRetry={() => retryPreview(screen.id)} /> : <>
+                    <iframe key={`${screen.id}:${previewRetry[screen.id] || 0}`} ref={element => element ? iframeRefs.current.set(screen.id, element) : iframeRefs.current.delete(screen.id)} src={screen.url} title={screen.name} className="screen-frame"
+                      onError={guard('preview', screen.id, () => failRegion('preview', screen.id, new Error('Preview page failed to load')))}
+                      onLoad={guard('preview', screen.id, () => {
+                        const oldTimer = previewTimersRef.current.get(screen.id);
+                        if (oldTimer) window.clearTimeout(oldTimer);
+                        previewTimersRef.current.set(screen.id, window.setTimeout(() => failRegion('preview', screen.id, new Error('Preview script did not respond within 10 seconds')), 10000));
+                        post(screen.id, { type: 'init', mode, selected: (selections[screen.id] || []).map(item => item.ref) });
+                      })} />
                     <div className="selection-overlay" aria-hidden="true">
                       {overlays.map(item => {
                         const lineWidth = (item.kind === 'selected' ? 2 : 1) / transform.z;
@@ -585,6 +747,7 @@ export default function App() {
                       })}
                     </div>
                     {pageErrors[screen.id] && <span className="page-error-badge" title={pageErrors[screen.id]}>Page error</span>}
+                    </>}
                   </div>
                 </article>;
               })}
@@ -596,13 +759,13 @@ export default function App() {
         <aside className="side-panels">
           <section className="panel layers-panel">
             <header className="panel-header"><h2>Layers</h2><span className="panel-count">{activeTree.length || ''}</span></header>
-            {activeScreen ? <>
-              <label className="search-field"><span aria-hidden="true">⌕</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search all layers" /></label>
-              <div ref={layerTreeRef} className="layer-tree" tabIndex={0} onKeyDown={onLayersKeyDown}
-                onScroll={event => {
+            {layersError ? <RegionError message={layersError} onRetry={() => activeScreen && loadChildren(activeScreen, null, true)} /> : activeScreen ? <>
+              <label className="search-field"><span aria-hidden="true">⌕</span><input value={search} onChange={guard('layers', activeScreen, event => setSearch(event.target.value))} placeholder="Search all layers" /></label>
+              <div ref={layerTreeRef} className="layer-tree" tabIndex={0} onKeyDown={guard('layers', activeScreen, onLayersKeyDown)}
+                onScroll={guard('layers', activeScreen, event => {
                   const scrollTop = event.currentTarget.scrollTop;
                   setPanelScrollByScreen(previous => ({ ...previous, [activeScreen]: scrollTop }));
-                }}>
+                })}>
                 {rowStatus[`${activeScreen}:@root`]?.loading && !activeTree.length && <div className="panel-empty">Loading layers...</div>}
                 {!activeTree.length && !rowStatus[`${activeScreen}:@root`]?.loading && <div className="panel-empty">No elements</div>}
                 {visibleRows.map(({ item, depth }) => {
@@ -612,12 +775,13 @@ export default function App() {
                   const childState = rowStatus[`${activeScreen}:${item.ref}`];
                   return <div key={item.ref} ref={element => element ? rowRefs.current.set(`${activeScreen}:${item.ref}`, element) : rowRefs.current.delete(`${activeScreen}:${item.ref}`)}
                     className={`layer-row${isSelected ? ' selected' : ''}${isHovered ? ' hovered' : ''}`} style={{ '--layer-depth': depth }}
-                    onMouseEnter={() => { setHovered(previous => ({ ...previous, [activeScreen]: { ...item, rect: null } })); post(activeScreen, { type: 'hover-ref', ref: item.ref }); }}
-                    onMouseLeave={() => { setHovered(previous => ({ ...previous, [activeScreen]: null })); post(activeScreen, { type: 'hover-ref', ref: null }); }}
-                    onClick={event => selectItem(activeScreen, item, event.shiftKey)}>
-                    <button className="layer-chevron" aria-label={isExpanded ? 'Collapse layer' : 'Expand layer'} disabled={!item.hasChildren} onClick={event => { event.stopPropagation(); toggleExpanded(activeScreen, item); }}>{item.hasChildren ? (isExpanded ? '⌄' : '›') : ''}</button>
+                    onMouseEnter={guard('layers', activeScreen, () => { setHovered(previous => ({ ...previous, [activeScreen]: { ...item, rect: null } })); post(activeScreen, { type: 'hover-ref', ref: item.ref }); })}
+                    onMouseLeave={guard('layers', activeScreen, () => { setHovered(previous => ({ ...previous, [activeScreen]: null })); post(activeScreen, { type: 'hover-ref', ref: null }); })}
+                    onClick={guard('layers', activeScreen, event => selectItem(activeScreen, item, event.shiftKey))}>
+                    <button className="layer-chevron" aria-label={isExpanded ? 'Collapse layer' : 'Expand layer'} disabled={!item.hasChildren} onClick={guard('layers', activeScreen, event => { event.stopPropagation(); toggleExpanded(activeScreen, item); })}>{item.hasChildren ? (isExpanded ? '⌄' : '›') : ''}</button>
                     <span className="layer-type">{item.tag.slice(0, 1)}</span><span className="layer-name" title={item.name}>{item.name}</span>
                     {childState?.loading && <span className="layer-state">Loading</span>}
+                    {childState?.error && <span className="layer-state layer-error-text">Couldn't load <button type="button" onClick={event => { event.stopPropagation(); loadChildren(activeScreen, item.ref, true); }}>Retry</button></span>}
                   </div>;
                 })}
               </div>
@@ -629,6 +793,7 @@ export default function App() {
             activeSelection={activeSelection}
             removed={removed[activeScreen]}
             detailState={currentDetailState}
+            detailsRetry={() => setDetailsRetry(value => value + 1)}
           />
         </aside>
       </main>
