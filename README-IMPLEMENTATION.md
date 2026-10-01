@@ -25,10 +25,9 @@ The bridge observes DOM mutations and reports changed selections, then the host 
 
 Known gaps in the current build:
 
-- **Anonymous element identity is temporary.** Anonymous elements use a token tied to the current DOM node, so selection clears if a page rebuilds that node. Unique `data-key` and ID values are re-resolved across rebuilds; duplicate keys or IDs are treated as ambiguous and are not re-resolved.
-- **Async R6 failures have local retries and reporting.** Board, preview, layer-panel, row-child, and Details request failures stay in their respective UI regions. The dev-only toolbar menu exercises those five cases. Page runtime errors are shown on their preview. This simpler implementation has no React error boundary, so an actual render exception is not caught or region-contained.
-- **Uncaught failures in browser-managed iframe internals have limited observability.** The host reports errors it receives through the bridge or its own request/render/event boundaries; a browser failure that produces no iframe load event and no bridge message is only detected by the ten-second handshake deadline.
-- **Interaction and keyboard coverage is not exhaustive.** Native behavior in Interact mode is intended, but the bridge's keyboard forwarding and host shortcuts may conflict with page-level keyboard workflows. The host layer keyboard handler implements arrow navigation; its exact behavior does not cover every selection shortcut described in the brief.
-- **Live layout data is approximate.** Geometry is rounded to integer CSS pixels and depends on browser layout and mutation/scroll notifications. Highly transient layout changes between updates may briefly render stale outlines or inspector values.
+- **Selection can be lost when a page rebuilds an element.** Stable, unique `data-key` or ID values help the app find it again. If keys are missing or duplicated, the app cannot be sure which element is the right one.
+- **Some failures are handled, but not all.** The app can retry and report common board, preview, layer, and details errors. It does not yet catch every render crash, and some browser errors inside a preview may only show up when the preview fails to connect.
+- **Keyboard support needs more testing.** Page controls and app shortcuts can compete for the same keys, and some selection shortcuts are not implemented yet.
+- **Outlines and inspector values can briefly be stale.** Fast page changes may happen before the app has refreshed its view.
 
 These are known limitations of the implementation as it stands, rather than guarantees that the assignment requirements are fully satisfied.
