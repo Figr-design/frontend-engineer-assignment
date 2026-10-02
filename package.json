@@ -1,9 +1,19 @@
 {
   "name": "figr-frontend-assignment",
   "private": true,
-  "description": "Starter kit for the Figr frontend engineer assignment",
+  "description": "Design-tool viewer: cross-origin previews, layers, and inspector",
   "engines": { "node": ">=18" },
   "scripts": {
-    "backend": "node backend/server.js"
+    "backend": "node backend/server.js",
+    "dev": "vite --config frontend/vite.config.mjs --port 5173 --strictPort",
+    "start": "node scripts/start.js"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.2.0"
   }
 }
