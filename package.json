@@ -2,8 +2,26 @@
   "name": "figr-frontend-assignment",
   "private": true,
   "description": "Starter kit for the Figr frontend engineer assignment",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "backend": "node backend/server.js"
+    "backend": "node backend/server.js",
+    "dev": "vite --config frontend/vite.config.ts",
+    "start": "concurrently -k -n backend,app -c blue,green \"npm run backend\" \"npm run dev\"",
+    "build": "vite build --config frontend/vite.config.ts"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7"
   }
 }
