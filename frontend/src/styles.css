@@ -1,0 +1,143 @@
+:root {
+  --bg: #e7e7ea;
+  --surface: #ffffff;
+  --text: #1c1c1e;
+  --muted: #6b6b70;
+  --border: #d4d4d8;
+  --danger: #b42318;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--text);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.toolbar-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.board-region {
+  position: relative;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.board {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+}
+
+.board-sizer {
+  position: relative;
+}
+
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.board-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.board-message p {
+  margin: 0;
+}
+
+.board-error {
+  color: var(--danger);
+}
+
+.board-error-detail {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Preview. Lives in world space, so screen-sized text divides by --zoom. */
+.preview {
+  position: absolute;
+  background: var(--surface);
+  box-shadow: 0 0 0 calc(1px / var(--zoom)) var(--border);
+}
+
+.preview-label {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  max-width: 100%;
+  margin: 0 0 calc(6px / var(--zoom));
+  overflow: hidden;
+  font-size: calc(12px / var(--zoom));
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.preview-frame {
+  display: block;
+  border: 0;
+}
+
+.preview-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(8px / var(--zoom));
+  background: var(--surface);
+  color: var(--muted);
+  font-size: calc(14px / var(--zoom));
+}
+
+.preview-status p {
+  margin: 0;
+}
+
+.preview-error {
+  color: var(--danger);
+}
+
+.preview-status button,
+.board-message button {
+  font: inherit;
+  font-size: 1em;
+  padding: 0.3em 0.9em;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
